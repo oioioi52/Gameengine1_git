@@ -2,61 +2,92 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
+    [Header("이동 설정")]
     public float moveSpeed = 5.0f;
-    public float jumpForce = 5.0f; 
-
-    private Animator animator;
-    // private Rigidbody2D rb; // Rigidbody2D 변수 제거
-    private bool isMoving;
-    private bool isJumping;
+    
+    [Header("점프 설정")]
+    public float jumpForce = 10.0f;
+    
+    private Rigidbody2D rb;
+    private bool isGrounded = false;
+    private int score = 0;  // 점수 추가
+    
+    private Vector3 startPosition;
 
     void Start()
     {
-        animator = GetComponent<Animator>();
-        // rb = GetComponent<Rigidbody2D>(); // Rigidbody2D 가져오는 코드 제거
+        rb = GetComponent<Rigidbody2D>();
 
-        if (animator != null)
-            Debug.Log("Animator 컴포넌트를 찾았습니다!");
-        else
-            Debug.LogError("Animator 컴포넌트가 없습니다!");
-        
-        // if (rb == null) // Rigidbody2D 검사 코드 제거
-        //     Debug.LogError("Rigidbody2D가 필요합니다!");
+        // 게임 시작 시 위치를 저장
+        startPosition = transform.position;
+        Debug.Log("시작 위치 저장: " + startPosition);
     }
-
+    
     void Update()
     {
-        isMoving = false;
-
-        // D키 (오른쪽)
-        if (Input.GetKey(KeyCode.D))
+        // 좌우 이동
+        float moveX = 0f;
+        if (Input.GetKey(KeyCode.A)) moveX = -1f;
+        if (Input.GetKey(KeyCode.D)) moveX = 1f;
+        
+        rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
+        
+        // 점프
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
-            transform.Translate(Vector3.right * moveSpeed * Time.deltaTime);
-            transform.localScale = new Vector3(1, 1, 1);
-            isMoving = true;
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+            Debug.Log("점프!");
+        }
+    }
+    
+    // 바닥 충돌 감지 (Collision)
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGrounded = true;
         }
 
-        // A키 (왼쪽)
-        if (Input.GetKey(KeyCode.A))
+        if (collision.gameObject.CompareTag("Obstacle"))
         {
-            transform.Translate(Vector3.left * moveSpeed * Time.deltaTime);
-            transform.localScale = new Vector3(-1, 1, 1);
-            isMoving = true;
+            Debug.Log("⚠️ 장애물 충돌! 시작 지점으로 돌아갑니다.");
+            
+            // 시작 위치로 순간이동
+            transform.position = startPosition;
+            
+            // 속도 초기화 (안 하면 계속 날아감)
+            rb.linearVelocity = new Vector2(0, 0);
         }
-
-        // 스페이스바 → 점프 애니메이션 재생 (물리적인 점프X)
-        if (Input.GetKeyDown(KeyCode.Space))
+    } // OnCollisionEnter2D 함수를 여기서 닫습니다.
+    
+    void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
         {
-            if (animator != null)
-            {
-                animator.SetBool("isJumping", true);
-                Debug.Log("점프!");
-                // 점프 애니메이션이 끝나면 자동으로 isJumping을 false로 바꿔줘야 합니다.
-                // 이 부분은 애니메이션 이벤트나 다른 방법으로 처리해야 합니다.
-            }
+            isGrounded = false;
+        }
+    }
+    
+    // 아이템 수집 감지 (Trigger)
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        // 코인 수집 (기존 코드)
+        if (other.CompareTag("Coin"))
+        {
+            score += 1;
+            Debug.Log("💰 코인 획득! 현재 점수: " + score);
+            Destroy(other.gameObject);
         }
         
-        // 애니메이션 파라미터 전달
-        animator.SetBool("isMoving", isMoving);
+        
+        // 골 도달 - 새로 추가!
+        if (other.CompareTag("Goal"))
+        {
+            Debug.Log("🎉🎉🎉 게임 클리어! 🎉🎉🎉");
+            Debug.Log("최종 점수: " + score + "점");
+            
+            // 캐릭터 조작 비활성화
+            enabled = false;
+        }
     }
 }
